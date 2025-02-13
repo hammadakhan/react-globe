@@ -11,11 +11,14 @@ function App() {
   const [hoverD, setHoverD] = useState();
 
   useEffect(() => {
-    fetch("/ne_110m_admin_0_countries.geojson")
+    const API_BASE_URL = import.meta.env.PROD
+  ? "https://cors-anywhere.herokuapp.com/https://api.ransomware.live"
+  : "/api"; 
+    fetch(`${import.meta.env.BASE_URL}ne_110m_admin_0_countries.geojson`)
       .then((res) => res.json())
       .then((data) => setCountries(data));
 
-    axios.get("/api/v2/victims/2024")
+    axios.get(`${API_BASE_URL}/v2/victims/2024`)
       .then((res) => {
         const attacks = res.data.reduce((acc, item) => {
           acc[item.country] = (acc[item.country] || 0) + 1;
