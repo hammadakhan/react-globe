@@ -1,0 +1,16 @@
+/* App.css */
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.globe-container {
+  width: 100vw;
+  height: 100vh;
+  position: fixed; /* Ensure it covers the entire screen */
+  top: 0;
+  left: 0;
+}
