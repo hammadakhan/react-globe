@@ -15,16 +15,7 @@ function App() {
       .then((res) => res.json())
       .then((data) => setCountries(data));
 
-    // axios.get(`${import.meta.env.BASE_URL}ransomware_data.json`)
-    //   .then((res) => {
-    //     const attacks = res.data.reduce((acc, item) => {
-    //       acc[item.country] = (acc[item.country] || 0) + 1;
-    //       return acc;
-    //     }, {});
-    //     setAttackData(attacks);
-    //   })
-
-    axios.get('https://hammadakhan.github.io/react-globe/https://api.ransomware.live/recentvictims')
+    axios.get(`${import.meta.env.BASE_URL}ransomware_data.json`)
       .then((res) => {
         const attacks = res.data.reduce((acc, item) => {
           acc[item.country] = (acc[item.country] || 0) + 1;
@@ -32,8 +23,6 @@ function App() {
         }, {});
         setAttackData(attacks);
       })
-
-    
       .catch((error) => console.error("Error fetching ransomware data:", error));
   }, []);
 
