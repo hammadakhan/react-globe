@@ -1,53 +1,293 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import Globe from "react-globe.gl";
 import { scaleSequentialSqrt } from "d3-scale";
 import { interpolateYlOrRd } from "d3-scale-chromatic";
 import axios from "axios";
 import "./App.css";
 
+// Replace or expand this with more country coordinates as needed
+// const countryCoordinates = {
+//   US: { lat: 37.0902, lng: -95.7129 },
+//   IN: { lat: 20.5937, lng: 78.9629 },
+//   RU: { lat: 61.524, lng: 105.3188 },
+//   CN: { lat: 35.8617, lng: 104.1954 },
+//   GB: { lat: 55.3781, lng: -3.4360 },
+//   DE: { lat: 51.1657, lng: 10.4515 },
+//   // Add more countries as needed
+// };
+
 function App() {
-  const [countries, setCountries] = useState({ features: [] });
+  const globeEl = useRef();
   const [attackData, setAttackData] = useState({});
-  const [hoverD, setHoverD] = useState();
+  const [arcData, setArcData] = useState([]);
+  const [showLabels, setShowLabels] = useState(true);
+  const [countryCoordinates, setCountryCoordinates] = useState({});
+  const [selectedCountry, setSelectedCountry] = useState(null);
+  const [totalAttacks, setTotalAttacks] = useState(0);
+  const [topCountries, setTopCountries] = useState([]);
 
+  // Fetch coordinates
   useEffect(() => {
-    fetch(`${import.meta.env.BASE_URL}ne_110m_admin_0_countries.geojson`)
-      .then((res) => res.json())
-      .then((data) => setCountries(data));
-
-    axios.get(`${import.meta.env.BASE_URL}ransomware_data.json`)
+    axios
+      .get(`${import.meta.env.BASE_URL}lat_long.json`)
       .then((res) => {
-        const attacks = res.data.reduce((acc, item) => {
+        const coords = res.data.reduce((acc, item) => {
+          acc[item["Alpha-2 code"]] = {
+            lat: item["Latitude (average)"],
+            lng: item["Longitude (average)"],
+            name: item["Country"]
+          };
+          return acc;
+        }, {});
+        setCountryCoordinates(coords);
+      })
+      .catch((err) => console.error("Error loading coordinates:", err));
+  }, []);
+
+  // Fetch attack data
+  useEffect(() => {
+    axios
+      .get(`${import.meta.env.BASE_URL}ransomware_data.json`)
+      .then((res) => {
+        const raw = res.data;
+        const countryCounts = raw.reduce((acc, item) => {
           acc[item.country] = (acc[item.country] || 0) + 1;
           return acc;
         }, {});
-        setAttackData(attacks);
+        setAttackData(countryCounts);
+        setTotalAttacks(raw.length);
+        
+        // Get top 5 countries
+        const top5 = Object.entries(countryCounts)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5);
+        setTopCountries(top5);
       })
-      .catch((error) => console.error("Error fetching ransomware data:", error));
+      .catch((err) => console.error("Error loading ransomware data:", err));
   }, []);
+
+  // Build arcs once both attackData and coordinates are ready
+  useEffect(() => {
+    if (!Object.keys(attackData).length || !Object.keys(countryCoordinates).length) return;
+
+    const arcs = Object.entries(attackData)
+      .map(([iso, count]) => {
+        const coords = countryCoordinates[iso];
+        if (!coords) return null;
+        return {
+          country: iso,
+          countryName: coords.name || iso,
+          count,
+          startLat: coords.lat,
+          startLng: coords.lng,
+          endLat: coords.lat,
+          endLng: coords.lng
+        };
+      })
+      .filter(Boolean);
+
+    setArcData(arcs);
+  }, [attackData, countryCoordinates]);
+
+  useEffect(() => {
+    if (globeEl.current) {
+      globeEl.current.controls().autoRotate = true;
+      globeEl.current.controls().autoRotateSpeed = 0.2;
+      
+      // Pause rotation when a country is selected
+      globeEl.current.controls().autoRotate = !selectedCountry;
+    }
+  }, [selectedCountry]);
 
   const colorScale = scaleSequentialSqrt(interpolateYlOrRd);
   const maxVal = useMemo(() => Math.max(...Object.values(attackData), 1), [attackData]);
   colorScale.domain([0, maxVal]);
 
+  const labels = useMemo(() => {
+    return Object.entries(attackData).map(([iso, count]) => {
+      const coords = countryCoordinates[iso];
+      return coords
+        ? {
+            lat: coords.lat,
+            lng: coords.lng,
+            text: `${iso}: ${count}`
+          }
+        : null;
+    }).filter(Boolean);
+  }, [attackData]);
+  
+  // Handle arc click
+  const handleArcClick = arc => {
+    // If already selected, deselect; otherwise, select the clicked country
+    setSelectedCountry(selectedCountry && selectedCountry.country === arc.country ? null : arc);
+    
+    // If selecting a country, focus the globe on it
+    if (!selectedCountry || selectedCountry.country !== arc.country) {
+      globeEl.current.pointOfView(
+        {
+          lat: arc.startLat,
+          lng: arc.startLng,
+          altitude: 1.8
+        }, 
+        1000 // transition duration
+      );
+    }
+  };
+  
+  // Define intensity levels for legend and classification
+  const intensityLevels = [
+    { label: "Low", threshold: 0, color: "yellow" },
+    { label: "Medium", threshold: 20, color: "orange" },
+    { label: "High", threshold: 50, color: "red" }
+  ];
+  
+  // Get severity level for a count
+  const getSeverityLevel = count => {
+    for (let i = intensityLevels.length - 1; i >= 0; i--) {
+      if (count >= intensityLevels[i].threshold) {
+        return intensityLevels[i];
+      }
+    }
+    return intensityLevels[0];
+  };
+  
+  // Get arc color based on count
+  const getArcColor = count => {
+    const level = getSeverityLevel(count);
+    return level.color;
+  };
+
   return (
-    <div className="globe-container">
+    <div className="globe-container" style={{ position: "relative" }}>
+      <div className="controls">
+        <button
+          onClick={() => setShowLabels(!showLabels)}
+          className="control-button"
+        >
+          {showLabels ? "Hide" : "Show"} Labels
+        </button>
+        
+        {selectedCountry && (
+          <button 
+            onClick={() => setSelectedCountry(null)}
+            className="control-button"
+          >
+            Close Details
+          </button>
+        )}
+      </div>
+
+      <div className="info-panel">
+        {selectedCountry ? (
+          <div className="country-details">
+            <h2>{selectedCountry.countryName || selectedCountry.country}</h2>
+            <div className="stat">
+              <span className="stat-label">Country Code:</span>
+              <span className="stat-value">{selectedCountry.country}</span>
+            </div>
+            <div className="stat">
+              <span className="stat-label">Attacks:</span>
+              <span className="stat-value">{selectedCountry.count}</span>
+            </div>
+            <div className="stat">
+              <span className="stat-label">Severity:</span>
+              <span className={`severity-badge ${getSeverityLevel(selectedCountry.count).color}`}>
+                {getSeverityLevel(selectedCountry.count).label}
+              </span>
+            </div>
+            <div className="stat">
+              <span className="stat-label">Global Share:</span>
+              <span className="stat-value">
+                {((selectedCountry.count / totalAttacks) * 100).toFixed(1)}%
+              </span>
+            </div>
+          </div>
+        ) : (
+          <>
+            <h2>Ransomware Attack Visualization</h2>
+            <div className="stat">
+              <span className="stat-label">Total Attacks:</span>
+              <span className="stat-value">{totalAttacks}</span>
+            </div>
+            <div className="top-countries">
+              <h3>Most Targeted Countries</h3>
+              <ul className="country-list">
+                {topCountries.map(([code, count]) => {
+                  const severity = getSeverityLevel(count);
+                  return (
+                    <li 
+                      key={code} 
+                      className="country-item"
+                      onClick={() => {
+                        const arcInfo = arcData.find(a => a.country === code);
+                        if (arcInfo) handleArcClick(arcInfo);
+                      }}
+                    >
+                      <span className="country-code">{code}</span>
+                      <span className="country-attacks">{count} attacks</span>
+                      <span className={`severity-indicator ${severity.color}`}></span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+            <div className="legend">
+              <h3>Attack Intensity</h3>
+              {intensityLevels.map(level => (
+                <div key={level.label} className="legend-item">
+                  <span className={`legend-marker ${level.color}`}></span>
+                  <span className="legend-label">
+                    {level.label} {level.threshold > 0 ? `(${level.threshold}+)` : ''}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="instructions">
+              Click on arcs or country names to see detailed information.
+            </div>
+          </>
+        )}
+      </div>
+
       <Globe
-        globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
-        backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
+        ref={globeEl}
+        globeImageUrl="https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
+        backgroundImageUrl="https://unpkg.com/three-globe/example/img/night-sky.png"
+        atmosphereAltitude={0.25}
+        atmosphereColor="lightskyblue"
+        arcsData={arcData}
+        arcStartLat={(d) => d.startLat}
+        arcStartLng={(d) => d.startLng}
+        arcEndLat={(d) => d.endLat}
+        arcEndLng={(d) => d.endLng}
+        arcColor={(d) => {
+          const color = getArcColor(d.count);
+          const isSelected = selectedCountry && selectedCountry.country === d.country;
+          return isSelected ? 'white' : color;
+        }}
+        arcAltitude={(d) => {
+          const isSelected = selectedCountry && selectedCountry.country === d.country;
+          return isSelected ? d.count * 0.002 : d.count * 0.001;
+        }}
+        arcDashLength={0.3}
+        arcDashGap={0.02}
+        arcDashAnimateTime={0} // Disable animation for better performance
+        arcStroke={(d) => {
+          const isSelected = selectedCountry && selectedCountry.country === d.country;
+          return isSelected ? 0.8 : 0.4;
+        }}
+        arcLabel={(d) => `<b>${d.countryName || d.country}</b><br />Attacks: <i>${d.count}</i>`}
+        onArcClick={handleArcClick}
+        labelsData={showLabels ? labels : []}
+        labelLat={(d) => d.lat}
+        labelLng={(d) => d.lng}
+        labelText={(d) => d.text}
+        labelSize={1.2}
+        labelDotRadius={0.25}
+        labelColor={() => "white"}
+        labelResolution={2}
         width={window.innerWidth}
         height={window.innerHeight}
-        polygonsData={countries.features}
-        polygonAltitude={(d) => (d === hoverD ? 0.12 : 0.06)}
-        polygonCapColor={(d) => colorScale(attackData[d.properties.ISO_A2] || 0)}
-        polygonSideColor={() => "rgba(0, 100, 0, 0.15)"}
-        polygonStrokeColor={() => "#111"}
-        polygonLabel={({ properties: d }) => `
-          <b>${d.NAME_LONG}</b><br />
-          Attacks: <i>${attackData[d.ISO_A2] || 0}</i>
-        `}
-        onPolygonHover={setHoverD}
-        polygonsTransitionDuration={300}
       />
     </div>
   );
