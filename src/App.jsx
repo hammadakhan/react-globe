@@ -25,6 +25,33 @@ function App() {
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [totalAttacks, setTotalAttacks] = useState(0);
   const [topCountries, setTopCountries] = useState([]);
+  const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
+  const [dimensions, setDimensions] = useState({
+    width: window.innerWidth,
+    height: window.innerHeight,
+    isMobile: window.innerWidth <= 768
+  });
+
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      setDimensions({
+        width: window.innerWidth,
+        height: window.innerHeight,
+        isMobile: window.innerWidth <= 768
+      });
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Auto-collapse panel on mobile by default
+  useEffect(() => {
+    if (dimensions.isMobile) {
+      setIsPanelCollapsed(true);
+    }
+  }, [dimensions.isMobile]);
 
   // Fetch coordinates
   useEffect(() => {
@@ -89,22 +116,36 @@ function App() {
     setArcData(arcs);
   }, [attackData, countryCoordinates]);
 
+  // Initialize and update globe settings
   useEffect(() => {
     if (globeEl.current) {
-      globeEl.current.controls().autoRotate = true;
+      // Adjust globe size based on screen dimensions
+      globeEl.current.controls().autoRotate = !selectedCountry;
       globeEl.current.controls().autoRotateSpeed = 0.2;
       
-      // Pause rotation when a country is selected
-      globeEl.current.controls().autoRotate = !selectedCountry;
+      // Adjust globe properties for mobile
+      if (dimensions.isMobile) {
+        globeEl.current.controls().enableZoom = true;
+        globeEl.current.controls().zoomSpeed = 0.8;
+        globeEl.current.pointOfView({ altitude: dimensions.isMobile ? 2.5 : 2.0 });
+      }
     }
-  }, [selectedCountry]);
+  }, [selectedCountry, dimensions.isMobile]);
 
   const colorScale = scaleSequentialSqrt(interpolateYlOrRd);
   const maxVal = useMemo(() => Math.max(...Object.values(attackData), 1), [attackData]);
   colorScale.domain([0, maxVal]);
 
   const labels = useMemo(() => {
-    return Object.entries(attackData).map(([iso, count]) => {
+    // Reduce number of labels on mobile
+    const entries = Object.entries(attackData);
+    const filteredEntries = dimensions.isMobile 
+      ? entries
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 10) 
+      : entries;
+    
+    return filteredEntries.map(([iso, count]) => {
       const coords = countryCoordinates[iso];
       return coords
         ? {
@@ -114,7 +155,7 @@ function App() {
           }
         : null;
     }).filter(Boolean);
-  }, [attackData]);
+  }, [attackData, countryCoordinates, dimensions.isMobile]);
   
   // Handle arc click
   const handleArcClick = arc => {
@@ -123,11 +164,14 @@ function App() {
     
     // If selecting a country, focus the globe on it
     if (!selectedCountry || selectedCountry.country !== arc.country) {
+      // Expand panel when selecting a country
+      setIsPanelCollapsed(false);
+      
       globeEl.current.pointOfView(
         {
           lat: arc.startLat,
           lng: arc.startLng,
-          altitude: 1.8
+          altitude: dimensions.isMobile ? 2.2 : 1.8
         }, 
         1000 // transition duration
       );
@@ -157,8 +201,20 @@ function App() {
     return level.color;
   };
 
+  // Toggle info panel for mobile
+  const toggleInfoPanel = () => {
+    if (dimensions.isMobile && selectedCountry) {
+      setSelectedCountry(null);
+    }
+  };
+
+  // Toggle panel collapse state
+  const togglePanelCollapse = () => {
+    setIsPanelCollapsed(!isPanelCollapsed);
+  };
+
   return (
-    <div className="globe-container" style={{ position: "relative" }}>
+    <div className="globe-container">
       <div className="controls">
         <button
           onClick={() => setShowLabels(!showLabels)}
@@ -175,77 +231,113 @@ function App() {
             Close Details
           </button>
         )}
+        
+        <button
+          onClick={togglePanelCollapse}
+          className="control-button panel-toggle"
+        >
+          {isPanelCollapsed ? "Show Panel" : "Hide Panel"}
+        </button>
       </div>
 
-      <div className="info-panel">
-        {selectedCountry ? (
-          <div className="country-details">
-            <h2>{selectedCountry.countryName || selectedCountry.country}</h2>
-            <div className="stat">
-              <span className="stat-label">Country Code:</span>
-              <span className="stat-value">{selectedCountry.country}</span>
-            </div>
-            <div className="stat">
-              <span className="stat-label">Attacks:</span>
-              <span className="stat-value">{selectedCountry.count}</span>
-            </div>
-            <div className="stat">
-              <span className="stat-label">Severity:</span>
-              <span className={`severity-badge ${getSeverityLevel(selectedCountry.count).color}`}>
-                {getSeverityLevel(selectedCountry.count).label}
-              </span>
-            </div>
-            <div className="stat">
-              <span className="stat-label">Global Share:</span>
-              <span className="stat-value">
-                {((selectedCountry.count / totalAttacks) * 100).toFixed(1)}%
-              </span>
-            </div>
-          </div>
-        ) : (
+      {/* Mobile expand button */}
+     {isPanelCollapsed && <button 
+        className="mobile-expand-btn"
+        onClick={togglePanelCollapse}
+        aria-label={isPanelCollapsed ? "Show info panel" : "Hide info panel"}
+      >
+        {isPanelCollapsed ? "📊" : "✖"}
+      </button>}
+
+      <div className={`info-panel ${isPanelCollapsed ? 'collapsed' : ''}`}>
+        {!isPanelCollapsed && (
           <>
-            <h2>Ransomware Attack Visualization</h2>
-            <div className="stat">
-              <span className="stat-label">Total Attacks:</span>
-              <span className="stat-value">{totalAttacks}</span>
+            <div className="panel-header">
+              <h2>
+                {selectedCountry 
+                  ? selectedCountry.countryName || selectedCountry.country 
+                  : "Ransomware Attack Visualization"
+                }
+              </h2>
+              <button className="collapse-btn" onClick={togglePanelCollapse}>
+                ✖
+              </button>
             </div>
-            <div className="top-countries">
-              <h3>Most Targeted Countries</h3>
-              <ul className="country-list">
-                {topCountries.map(([code, count]) => {
-                  const severity = getSeverityLevel(count);
-                  return (
-                    <li 
-                      key={code} 
-                      className="country-item"
-                      onClick={() => {
-                        const arcInfo = arcData.find(a => a.country === code);
-                        if (arcInfo) handleArcClick(arcInfo);
-                      }}
-                    >
-                      <span className="country-code">{code}</span>
-                      <span className="country-attacks">{count} attacks</span>
-                      <span className={`severity-indicator ${severity.color}`}></span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-            <div className="legend">
-              <h3>Attack Intensity</h3>
-              {intensityLevels.map(level => (
-                <div key={level.label} className="legend-item">
-                  <span className={`legend-marker ${level.color}`}></span>
-                  <span className="legend-label">
-                    {level.label} {level.threshold > 0 ? `(${level.threshold}+)` : ''}
+            
+            {selectedCountry ? (
+              <div className="country-details">
+                <div className="stat">
+                  <span className="stat-label">Country Code:</span>
+                  <span className="stat-value">{selectedCountry.country}</span>
+                </div>
+                <div className="stat">
+                  <span className="stat-label">Attacks:</span>
+                  <span className="stat-value">{selectedCountry.count}</span>
+                </div>
+                <div className="stat">
+                  <span className="stat-label">Severity:</span>
+                  <span className={`severity-badge ${getSeverityLevel(selectedCountry.count).color}`}>
+                    {getSeverityLevel(selectedCountry.count).label}
                   </span>
                 </div>
-              ))}
-            </div>
-            <div className="instructions">
-              Click on arcs or country names to see detailed information.
-            </div>
+                <div className="stat">
+                  <span className="stat-label">Global Share:</span>
+                  <span className="stat-value">
+                    {((selectedCountry.count / totalAttacks) * 100).toFixed(1)}%
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="stat">
+                  <span className="stat-label">Total Attacks:</span>
+                  <span className="stat-value">{totalAttacks}</span>
+                </div>
+                <div className="top-countries">
+                  <h3>Most Targeted Countries</h3>
+                  <ul className="country-list">
+                    {topCountries.map(([code, count]) => {
+                      const severity = getSeverityLevel(count);
+                      return (
+                        <li 
+                          key={code} 
+                          className="country-item"
+                          onClick={() => {
+                            const arcInfo = arcData.find(a => a.country === code);
+                            if (arcInfo) handleArcClick(arcInfo);
+                          }}
+                        >
+                          <span className="country-code">{code}</span>
+                          <span className="country-attacks">{count} attacks</span>
+                          <span className={`severity-indicator ${severity.color}`}></span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+                <div className="legend">
+                  <h3>Attack Intensity</h3>
+                  {intensityLevels.map(level => (
+                    <div key={level.label} className="legend-item">
+                      <span className={`legend-marker ${level.color}`}></span>
+                      <span className="legend-label">
+                        {level.label} {level.threshold > 0 ? `(${level.threshold}+)` : ''}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div className="instructions">
+                  Click on arcs or country names to see detailed information.
+                </div>
+              </>
+            )}
           </>
+        )}
+        
+        {isPanelCollapsed && (
+          <div className="panel-tab" onClick={togglePanelCollapse}>
+            <span>{dimensions.isMobile ? "📊 View Stats" : "Show Info"}</span>
+          </div>
         )}
       </div>
 
@@ -278,16 +370,18 @@ function App() {
         }}
         arcLabel={(d) => `<b>${d.countryName || d.country}</b><br />Attacks: <i>${d.count}</i>`}
         onArcClick={handleArcClick}
+        onGlobeClick={dimensions.isMobile ? toggleInfoPanel : undefined}
         labelsData={showLabels ? labels : []}
         labelLat={(d) => d.lat}
         labelLng={(d) => d.lng}
         labelText={(d) => d.text}
-        labelSize={1.2}
-        labelDotRadius={0.25}
+        labelSize={dimensions.isMobile ? 0.8 : 1.2}
+        labelDotRadius={dimensions.isMobile ? 0.2 : 0.25}
         labelColor={() => "white"}
         labelResolution={2}
-        width={window.innerWidth}
-        height={window.innerHeight}
+        width={dimensions.width}
+        height={dimensions.height}
+        rendererConfig={{ antialias: !dimensions.isMobile }}
       />
     </div>
   );

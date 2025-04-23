@@ -2,19 +2,10 @@
 html, body, #root {
   margin: 0;
   padding: 0;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
   background-color: #000;
-}
-
-.globe-container {
-  width: 100vw;
-  height: 100vh;
-  position: fixed; /* Ensure it covers the entire screen */
-  top: 0;
-  overflow: hidden;
-  left: 0;
 }
 
 /* Global styles */
@@ -25,13 +16,15 @@ body, html {
   overflow: hidden;
   background-color: #000;
   color: white;
+  font-size: 16px;
 }
 
 .globe-container {
-  width: 100vw;
+  width: 100%;
   height: 100vh;
   position: relative;
   overflow: hidden;
+  touch-action: manipulation;
 }
 
 /* Controls */
@@ -60,34 +53,120 @@ body, html {
   border-color: rgba(255, 255, 255, 0.5);
 }
 
+.panel-toggle {
+  background-color: rgba(50, 50, 100, 0.7);
+}
+
+/* Mobile expand button */
+.mobile-expand-btn {
+  display: none; /* Hide by default, will show on mobile */
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 1001;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background-color: rgba(30, 50, 100, 0.9);
+  border: none;
+  color: white;
+  font-size: 24px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  justify-content: center;
+  align-items: center;
+}
+
 /* Info Panel */
 .info-panel {
   position: absolute;
   top: 20px;
   right: 20px;
-  width: 300px;
-  background-color: rgba(0, 0, 0, 0.75);
+  width: clamp(300px, 25vw, 400px); /* Dynamic width */
+  background-color: rgba(0, 0, 0, 0.85);
   border-radius: 8px;
-  padding: 20px;
+  padding: clamp(15px, 2vw, 25px); /* Dynamic padding */
   color: white;
   z-index: 1000;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(10px);
   max-height: calc(100vh - 60px);
   overflow-y: auto;
+  transition: transform 0.3s ease, opacity 0.3s ease;
 }
 
-.info-panel h2 {
-  margin-top: 0;
-  margin-bottom: 15px;
+.info-panel.collapsed {
+  transform: translateX(calc(100% - 40px));
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.info-panel.collapsed .panel-tab {
+  pointer-events: auto;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: clamp(10px, 1.8vw, 20px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  padding-bottom: 10px;
-  font-size: 22px;
+  padding-bottom: clamp(10px, 1.5vw, 15px);
+}
+
+.panel-header h2 {
+  margin: 0;
+  font-size: clamp(18px, 2vw, 24px);
+  font-weight: 600;
+}
+
+.collapse-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: clamp(24px, 2.5vw, 28px);
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  transition: all 0.2s;
+}
+
+.collapse-btn:hover {
+  opacity: 0.7;
+}
+
+.panel-tab {
+  position: absolute;
+  left: -50px;
+  top: 50%;
+  transform: translateY(-50%) rotate(-90deg);
+  background-color: rgba(30, 50, 100, 0.9);
+  color: white;
+  padding: 10px 20px;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  cursor: pointer;
+  transform-origin: right center;
+  white-space: nowrap;
+  box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-bottom: none;
+}
+
+.panel-tab span {
+  font-weight: bold;
+  font-size: clamp(14px, 1.5vw, 16px);
 }
 
 .info-panel h3 {
-  font-size: 18px;
-  margin: 20px 0 10px;
+  font-size: clamp(16px, 1.8vw, 20px);
+  margin: clamp(15px, 2vw, 25px) 0 clamp(10px, 1.5vw, 15px);
+  font-weight: 600;
 }
 
 /* Country List */
@@ -101,10 +180,10 @@ body, html {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px;
-  margin-bottom: 5px;
+  padding: clamp(10px, 1.2vw, 14px);
+  margin-bottom: clamp(5px, 0.8vw, 8px);
   background-color: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   transition: background-color 0.2s ease;
   position: relative;
@@ -116,17 +195,17 @@ body, html {
 
 .country-code {
   font-weight: bold;
-  font-size: 16px;
+  font-size: clamp(14px, 1.5vw, 18px);
 }
 
 .country-attacks {
-  font-size: 14px;
-  opacity: 0.8;
+  font-size: clamp(12px, 1.3vw, 16px);
+  opacity: 0.9;
 }
 
 .severity-indicator {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   display: inline-block;
   margin-left: 10px;
@@ -136,12 +215,12 @@ body, html {
 .stat {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 10px;
-  font-size: 15px;
+  margin-bottom: clamp(10px, 1.5vw, 15px);
+  font-size: clamp(14px, 1.5vw, 17px);
 }
 
 .stat-label {
-  opacity: 0.7;
+  opacity: 0.8;
 }
 
 .stat-value {
@@ -149,9 +228,9 @@ body, html {
 }
 
 .severity-badge {
-  padding: 3px 8px;
-  border-radius: 10px;
-  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: 12px;
+  font-size: clamp(12px, 1.2vw, 14px);
   font-weight: bold;
   text-transform: uppercase;
   color: black;
@@ -159,27 +238,27 @@ body, html {
 
 /* Legend */
 .legend {
-  margin-top: 15px;
-  padding-top: 15px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: clamp(15px, 2vw, 20px);
+  padding-top: clamp(15px, 2vw, 20px);
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .legend-item {
   display: flex;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: clamp(8px, 1vw, 12px);
 }
 
 .legend-marker {
-  width: 15px;
-  height: 15px;
+  width: clamp(15px, 1.5vw, 18px);
+  height: clamp(15px, 1.5vw, 18px);
   border-radius: 50%;
-  margin-right: 10px;
+  margin-right: clamp(10px, 1.2vw, 15px);
   display: inline-block;
 }
 
 .legend-label {
-  font-size: 14px;
+  font-size: clamp(13px, 1.4vw, 16px);
 }
 
 /* Colors for severity indicators */
@@ -197,26 +276,139 @@ body, html {
 
 /* Instructions */
 .instructions {
-  margin-top: 20px;
-  padding: 10px;
+  margin-top: clamp(20px, 2.2vw, 25px);
+  padding: clamp(10px, 1.3vw, 15px);
   background-color: rgba(0, 100, 255, 0.2);
-  border-radius: 5px;
-  font-size: 14px;
+  border-radius: 6px;
+  font-size: clamp(13px, 1.4vw, 16px);
   text-align: center;
 }
 
 /* Responsive adjustments */
+@media (max-width: 1024px) {
+  .info-panel {
+    width: 320px;
+    padding: 20px;
+  }
+}
+
 @media (max-width: 768px) {
   .info-panel {
-    width: 250px;
-    font-size: 14px;
+    width: calc(100% - 30px);
+    right: 0;
+    left: 0;
+    margin: 0 auto;
+    max-height: min(50vh, 500px);
+    top: auto;
+    bottom: 0;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    border-top-left-radius: 15px;
+    border-top-right-radius: 15px;
+    padding: min(5vw, 18px);
+    transform: translateY(0);
+    font-size: min(4vw, 16px);
   }
   
-  .info-panel h2 {
-    font-size: 18px;
+  .info-panel.collapsed {
+    transform: translateY(calc(100% - 40px));
+    opacity: 0.95;
+  }
+  
+  .panel-tab {
+    left: 50%;
+    transform: translateX(-50%) translateY(-100%);
+    top: 0;
+    border-radius: 12px 12px 0 0;
+    padding: 8px min(6vw, 25px);
+    width: auto;
+    text-align: center;
+    transform-origin: bottom center;
+    writing-mode: horizontal-tb;
+    rotate: 0deg;
+    font-size: min(4vw, 16px);
+    background-color: rgba(30, 50, 100, 0.9);
+  }
+  
+  .mobile-expand-btn {
+    display: flex;
+  }
+  
+  .controls {
+    top: 15px;
+    left: 15px;
+  }
+  
+  .control-button {
+    padding: 8px 15px;
+    font-size: min(3.5vw, 14px);
+  }
+  
+  .panel-header h2 {
+    font-size: min(5vw, 20px);
   }
   
   .info-panel h3 {
-    font-size: 16px;
+    font-size: min(4.5vw, 18px);
+    margin: min(4vw, 18px) 0 min(2.5vw, 12px);
+  }
+  
+  .stat {
+    font-size: min(4vw, 16px);
+    margin-bottom: min(3vw, 12px);
+  }
+  
+  .country-item {
+    padding: min(3vw, 12px);
+  }
+  
+  .country-code {
+    font-size: min(4vw, 16px);
+  }
+  
+  .country-attacks {
+    font-size: min(3.5vw, 14px);
+  }
+  
+  .legend-label {
+    font-size: min(3.5vw, 14px);
+  }
+}
+
+/* Small mobile screens */
+@media (max-width: 480px) {
+  .info-panel {
+    max-height: 60vh;
+    padding: 15px;
+  }
+  
+  .controls {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .legend-item {
+    margin-bottom: 8px;
+  }
+  
+  .legend-label {
+    font-size: min(3.5vw, 14px);
+  }
+  
+  .panel-toggle {
+    display: none; /* Hide panel toggle button on very small screens, use tab instead */
+  }
+  
+  .mobile-expand-btn {
+    width: 60px;
+    height: 60px;
+    font-size: 28px;
+    bottom: min(5vh, 30px);
+    right: min(5vw, 30px);
+  }
+  
+  .panel-tab span {
+    font-weight: bold;
+    font-size: min(3.8vw, 15px);
   }
 }
