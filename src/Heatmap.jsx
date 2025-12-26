@@ -239,14 +239,14 @@ function Heatmap() {
       )}
 
       {/* Color Legend */}
-      <div className="color-legend">
+      {/* <div className="color-legend">
         <div className="legend-title">Attack Intensity Scale</div>
         <div className="legend-gradient">
           <span>Low (0)</span>
           <div className={`gradient-bar ${colorScheme}`}></div>
           <span>High ({maxAttacks})</span>
         </div>
-      </div>
+      </div> */}
     </div>
   );
 }
