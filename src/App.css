@@ -46,6 +46,8 @@ body, html {
   cursor: pointer;
   transition: all 0.2s ease;
   font-size: 14px;
+  text-decoration: none;
+  display: inline-block;
 }
 
 .control-button:hover {
@@ -55,6 +57,17 @@ body, html {
 
 .panel-toggle {
   background-color: rgba(50, 50, 100, 0.7);
+}
+
+.heatmap-link {
+  background-color: rgba(0, 122, 255, 0.7);
+  font-weight: 600;
+}
+
+.heatmap-link:hover {
+  background-color: rgba(0, 122, 255, 0.9);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 122, 255, 0.4);
 }
 
 /* Mobile expand button */
