@@ -190,7 +190,7 @@ function Heatmap() {
       </div>
 
       {/* Selected Country Details Panel */}
-      {selectedCountry && (
+      {/* {selectedCountry && (
         <div className="detail-panel">
           <div className="detail-header">
             <h2>{selectedCountry.name} ({selectedCountry.code})</h2>
@@ -236,17 +236,7 @@ function Heatmap() {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Color Legend */}
-      {/* <div className="color-legend">
-        <div className="legend-title">Attack Intensity Scale</div>
-        <div className="legend-gradient">
-          <span>Low (0)</span>
-          <div className={`gradient-bar ${colorScheme}`}></div>
-          <span>High ({maxAttacks})</span>
-        </div>
-      </div> */}
+      )} */
     </div>
   );
 }
