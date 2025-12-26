@@ -53,7 +53,6 @@ function Heatmap() {
     isMobile: window.innerWidth <= 768
   });
 
-  // Handle window resize
   useEffect(() => {
     const handleResize = () => {
       setDimensions({
