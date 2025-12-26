@@ -189,8 +189,8 @@ function Heatmap() {
         )}
       </div>
 
-      {/* Selected Country Details Panel */}
-      {/* {selectedCountry && (
+      {/* Selected Country Details Panel
+      {selectedCountry && (
         <div className="detail-panel">
           <div className="detail-header">
             <h2>{selectedCountry.name} ({selectedCountry.code})</h2>
@@ -236,7 +236,7 @@ function Heatmap() {
             </div>
           </div>
         </div>
-      )} */
+      )} */}
     </div>
   );
 }
