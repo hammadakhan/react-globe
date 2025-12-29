@@ -72,26 +72,33 @@ function App() {
       .catch((err) => console.error("Error loading coordinates:", err));
   }, []);
 
-  // Fetch attack data
+  // Fetch attack data from API
   useEffect(() => {
     axios
-      .get(`${import.meta.env.BASE_URL}ransomware_data.json`)
+      .get("http://172.190.180.89:85/dashboard-scheduler/blacklist-ips")
       .then((res) => {
-        const raw = res.data;
-        const countryCounts = raw.reduce((acc, item) => {
-          acc[item.country] = (acc[item.country] || 0) + 1;
-          return acc;
-        }, {});
-        setAttackData(countryCounts);
-        setTotalAttacks(raw.length);
-        
-        // Get top 5 countries
-        const top5 = Object.entries(countryCounts)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 5);
-        setTopCountries(top5);
+        if (res.data.success && res.data.data && res.data.data.ips) {
+          const ips = res.data.data.ips;
+          
+          // Count attacks by country code
+          const countryCounts = ips.reduce((acc, item) => {
+            if (item.countryCode) {
+              acc[item.countryCode] = (acc[item.countryCode] || 0) + 1;
+            }
+            return acc;
+          }, {});
+          
+          setAttackData(countryCounts);
+          setTotalAttacks(ips.length);
+          
+          // Get top 5 countries
+          const top5 = Object.entries(countryCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5);
+          setTopCountries(top5);
+        }
       })
-      .catch((err) => console.error("Error loading ransomware data:", err));
+      .catch((err) => console.error("Error loading blacklist IPs data:", err));
   }, []);
 
   // Build arcs once both attackData and coordinates are ready
@@ -257,7 +264,7 @@ function App() {
               <h2>
                 {selectedCountry 
                   ? selectedCountry.countryName || selectedCountry.country 
-                  : "Ransomware Attack Visualization"
+                  : "Blacklist IP Visualization"
                 }
               </h2>
               <button className="collapse-btn" onClick={togglePanelCollapse}>
@@ -272,7 +279,7 @@ function App() {
                   <span className="stat-value">{selectedCountry.country}</span>
                 </div>
                 <div className="stat">
-                  <span className="stat-label">Attacks:</span>
+                  <span className="stat-label">Blacklisted IPs:</span>
                   <span className="stat-value">{selectedCountry.count}</span>
                 </div>
                 <div className="stat">
@@ -291,7 +298,7 @@ function App() {
             ) : (
               <>
                 <div className="stat">
-                  <span className="stat-label">Total Attacks:</span>
+                  <span className="stat-label">Total Blacklisted IPs:</span>
                   <span className="stat-value">{totalAttacks}</span>
                 </div>
                 <div className="top-countries">
@@ -309,7 +316,7 @@ function App() {
                           }}
                         >
                           <span className="country-code">{code}</span>
-                          <span className="country-attacks">{count} attacks</span>
+                          <span className="country-attacks">{count} IPs</span>
                           <span className={`severity-indicator ${severity.color}`}></span>
                         </li>
                       );
@@ -317,7 +324,7 @@ function App() {
                   </ul>
                 </div>
                 <div className="legend">
-                  <h3>Attack Intensity</h3>
+                  <h3>Threat Intensity</h3>
                   {intensityLevels.map(level => (
                     <div key={level.label} className="legend-item">
                       <span className={`legend-marker ${level.color}`}></span>
@@ -369,7 +376,7 @@ function App() {
           const isSelected = selectedCountry && selectedCountry.country === d.country;
           return isSelected ? 0.8 : 0.4;
         }}
-        arcLabel={(d) => `<b>${d.countryName || d.country}</b><br />Attacks: <i>${d.count}</i>`}
+        arcLabel={(d) => `<b>${d.countryName || d.country}</b><br />Blacklisted IPs: <i>${d.count}</i>`}
         onArcClick={handleArcClick}
         onGlobeClick={dimensions.isMobile ? toggleInfoPanel : undefined}
         labelsData={showLabels ? labels : []}
